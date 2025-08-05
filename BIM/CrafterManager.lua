@@ -2,7 +2,7 @@ assert(turtle, "Requires a crafty turtle.")
 
 --#region Locals--
 local workbench = peripheral.find("workbench")
-local recipes = {}
+local recipes = {} -- array of recipe names
 local clickList = {}
 local mainScreen = term.current()
 local mainSize = { mainScreen.getSize() }
@@ -109,77 +109,54 @@ local function ensureStock(recipe, n)
     return true
 end
 
-local function getMinCraftsPerStack(recipe)
-    local maxInput = 64
-    for _, item in pairs(recipe.input) do
-        local max = Vs.itemDetailsMap[item].maxCount
-        if max < maxInput then
-            maxInput = max
-        end
-    end
-    return 64 / maxInput
-end
-
-local function craftOne()
+local function craftN(n)
     if not workbench then return true end
     if not selected then return true end
+    if not Storage.buffer then return true end
     if not fs.exists(Vs.name .. "/Recipes/" .. selected) then return true end
     local recipe = loadFile(Vs.name .. "/Recipes/" .. selected)
-    if recipe == nil or Storage.chests == nil then return true end
-    if not ensureStock(recipe, 1) then return true end
-    if not Storage.buffer then return true end
-
-    for slot, item in pairs(recipe.input) do
-        os.queueEvent("turtle_inventory_ignore")
-        Storage:retrieveItem(item, 0.015625)
-        turtle.select(slot)
-        turtle.suckDown()
-    end
-
-    workbench.craft()
-    os.queueEvent("turtle_inventory_ignore")
-    turtle.drop()
-    os.queueEvent("turtle_inventory_start")
-    os.queueEvent("Update_Env")
-    return false
-end
-
-local function craftStack()
-    if not workbench then return true end
-    if not selected then return true end
-    if not fs.exists(Vs.name .. "/Recipes/" .. selected) then return true end
-    local recipe = loadFile(Vs.name .. "/Recipes/" .. selected)
-    if not ensureStock(recipe, Vs.itemDetailsMap[recipe.name].maxCount) then return true end
-    if not Storage.buffer then return true end
+    if not ensureStock(recipe, n) then return true end
 
     -- Find the minimum stack size among output and all inputs
-    local minStack = Vs.itemDetailsMap[recipe.name].maxCount
+    if not Vs.itemDetailsMap[recipe.name] then return true end --todo give user feedback on what went wrong
+    local outputStack = Vs.itemDetailsMap[recipe.name].maxCount
+    local minStack = outputStack
     for _, item in pairs(recipe.input) do
+        if not Vs.itemDetailsMap[item] then return true end -- Validate itemDetailsMap
         local stackSize = Vs.itemDetailsMap[item].maxCount
         if stackSize < minStack then
             minStack = stackSize
         end
     end
 
-    local nCrafts = getMinCraftsPerStack(recipe)
-    for _ = 1, nCrafts do
-        -- Pull the correct amount for each ingredient
+    local crafted = 0
+    while crafted < n do
+        -- For this batch, determine how many crafts we can do at once
+        local craftsThisBatch = math.min(minStack, n - crafted)
         for slot, item in pairs(recipe.input) do
             os.queueEvent("turtle_inventory_ignore")
             local ingredientStack = Vs.itemDetailsMap[item].maxCount
-            local percent = minStack / ingredientStack
+            -- How much of a stack to pull for this batch
+            local percent = craftsThisBatch / ingredientStack
             Storage:retrieveItem(item, percent)
             turtle.select(slot)
             turtle.suckDown()
         end
+
         workbench.craft()
         os.queueEvent("turtle_inventory_ignore")
         turtle.drop()
+        crafted = crafted + craftsThisBatch
     end
 
     os.queueEvent("turtle_inventory_start")
     os.queueEvent("Update_Env")
     return false
+end
+local craftOne = function() return craftN(1) end
+local craftStack = function()
+    local recipe = loadFile(Vs.name .. "/Recipes/" .. selected)
+    return craftN(Vs.itemDetailsMap[recipe.name].maxCount)
 end
 
 local buttons = { " Craft one ", " Craft stack ", " Save ", " Delete  " }

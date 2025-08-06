@@ -324,6 +324,14 @@ end
 
 local function loopTopBar()
     while true do
+
+        if not Storage.buffer then
+            while true do
+                os.pullEvent("Update_Env")
+                if Storage.buffer then break end
+            end
+        end
+
         local event = { os.pullEvent("mouse_click") }
 
         if event[4] == 1 then -- only when clicked on top bar

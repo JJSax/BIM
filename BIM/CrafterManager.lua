@@ -195,6 +195,127 @@ local function clickedMenu(x)
     menu(0)
 end
 
+-- draw the crafting menu
+-- This will draw a menu that will allow the user to decide how much to craft, and if they want to recursively craft
+---@param itemName string The display name of the item clicked
+local function craftingMenu(itemName)
+    if not itemName then return false end
+    do
+        recipeMenu.clear() -- normal buttons should not be shown; they aren't used here
+        local craftText = " Craft "
+        recipeMenu.setCursorPos(1, 1)
+        recipeMenu.blit(craftText, ('f'):rep(#craftText), ('7'):rep(#craftText))
+
+        local text = " Return "
+        recipeMenu.setCursorPos(recipeMenu:getSize() - #text + 1, 1) -- adjust to the right
+        recipeMenu.blit(text, string.rep('f', #text), string.rep('7', #text))
+    end
+
+    local screenWidth = screenSize[1]
+    local craftNum = 1
+    -- local recurse = true
+    local cButtons = {}
+
+    local function drawCharButton(viewport, button)
+        if button.bc then
+            viewport.setBackgroundColor(button.bc)
+        end
+        if button.tc then
+            viewport.setTextColor(button.tc)
+        end
+        for cy = button.y, button.y + button.h - 1 do
+            viewport.setCursorPos(button.x, cy)
+            viewport.write((' '):rep(button.w))
+        end
+        viewport.setCursorPos(button.x + button.w / 2, button.y + button.h / 2)
+        viewport.write(button.char)
+    end
+
+    local function write(t, x, y, tc, bc)
+        screen.setCursorPos(x, y)
+        screen.blit(t, tc:rep(#t), bc:rep(#t))
+    end
+
+    local function drawCraftNum()
+        write((' '):rep(5), 9, 6, 'f', '8')
+        local numberLength = string.len(craftNum)
+        write(tostring(craftNum), 12 + (-numberLength + numberLength / 2), 6, 'f', '8')
+    end
+
+    screen.clear()
+    -- Show item title being requested
+    screen.setBackgroundColor(colors.lightGray)
+    for i = 1, 3 do
+        screen.setCursorPos(1, i)
+        screen.clearLine()
+    end
+
+    -- Draw fancy border around item display name
+    local x = math.floor(screenWidth / 2 - #itemName/2)
+    write(itemName, x, 2, 'f', '8')
+    write(string.char(0x8C):rep(#itemName), x, 1, '9', '8') -- top
+    write(string.char(0x83):rep(#itemName), x, 3, '9', '8') -- bottom
+    write(string.char(0x95), x - 1, 2, '9', '8') -- left
+    write(string.char(0x95), x + #itemName, 2, '8', '9') -- right
+    write(string.char(0x9C), x - 1, 1, '9', '8') -- tl corner
+    write(string.char(0x93), x + #itemName, 1, '8', '9') -- tr corner
+    write(string.char(0x83), x - 1, 3, '9', '8') -- bl corner
+    write(string.char(0x83), x + #itemName, 3, '9', '8') -- br corner
+
+    local function createCharButton(viewport, char, x, y, w, h, callback, tc, bc)
+        table.insert(cButtons, {char = char, x = x, y = y, w = w, h = h, callback = callback, tc = tc, bc = bc})
+        drawCharButton(viewport, cButtons[#cButtons])
+    end
+
+    local function sub64() craftNum = craftNum - 64 end
+    local function sub1()  craftNum = craftNum - 1 end
+    local function add1()  craftNum = craftNum + 1 end
+    local function add64() craftNum = craftNum == 1 and 64 or craftNum + 64 end
+
+    -- draw amount changing buttons
+    createCharButton(screen, string.char(0xAB), 2, 5, 3, 3, sub64, colors.white, colors.gray) -- "«"
+    createCharButton(screen, string.char(0x2D), 5, 5, 3, 3, sub1, colors.white, colors.gray) -- "-"
+    createCharButton(screen, string.char(0x2B), 15,5, 3, 3, add1, colors.white, colors.gray) -- "+"
+    createCharButton(screen, string.char(0xBB), 18,5, 3, 3, add64, colors.white, colors.gray) -- "»"
+
+    -- draw number to craft
+    drawCharButton(screen, {char = ' ', x = 8, y = 5, w = 7, h = 3, bc = colors.lightGray, tc = colors.black})
+    drawCraftNum()
+
+    while true do
+        local _, _, x, y = os.pullEvent("mouse_click")
+
+        if y > screenSize[2] then
+            if x > recipeMenu:getSize() - 8 then -- if clicked on return button
+                break
+            elseif x <= 7 then
+                --todo recursive crafting
+                if craftN(craftNum) then
+                    local craftText = " Error "
+                    recipeMenu.setCursorPos(1, 1)
+                    recipeMenu.blit(craftText, ('f'):rep(#craftText), ('e'):rep(#craftText))
+                    sleep(0.4)
+                end
+                break
+            end
+        else
+            for _, v in ipairs(cButtons) do
+                if x >= v.x and x < v.x + v.w and y >= v.y and y < v.y + v.h then
+                    v.callback(v)
+                    if craftNum < 1 then craftNum = 1 end
+                    screen.setBackgroundColor(colors.lightBlue)
+                    screen.setTextColor(colors.white)
+                    drawCharButton(screen, v)
+                    sleep(0.05)
+                    screen.setBackgroundColor(colors.gray)
+                    drawCharButton(screen, v)
+                    drawCraftNum()
+                end
+            end
+        end
+    end
+end
+
 local function loopPrint()
     while true do
         local event = { os.pullEvent() }
@@ -202,11 +323,20 @@ local function loopPrint()
             scrollIndex = scrollIndex + event[2]
             clickList = Um.Print(recipes, selected, scrollIndex, scrollBar, screen, colAmount)
         elseif event[1] == "mouse_click" then
-            if event[4] > screenSize[2] then
+            if event[4] > screenSize[2] then -- if clicked on bottom buttons.  Aka the crafts, save, delete buttons
                 clickedMenu(event[3])
             else
-                selected = recipes[Um.Click(clickList, event[3], event[4])]
-                Um.Print(recipes, selected, scrollIndex, scrollBar, screen, colAmount)
+                local itemClicked = Um.Click(clickList, event[3], event[4])
+                selected = recipes[itemClicked]
+                if event[2] == 3 then -- middle click
+                    craftingMenu(selected)
+                    screen.setBackgroundColor(colors.black)
+                    screen.setTextColor(colors.white)
+                    clickList = Um.Print(recipes, selected, scrollIndex, scrollBar, screen, colAmount)
+                    clickedMenu(-1)
+                else
+                    Um.Print(recipes, selected, scrollIndex, scrollBar, screen, colAmount)
+                end
             end
         elseif event[1] == "click_ignore" then
             os.pullEvent("click_start")

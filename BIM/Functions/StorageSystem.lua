@@ -221,6 +221,68 @@ function SS:retrieveItem(itemName, percentOfStack)
     return true, noMoreItemLeft
 end
 
+---Get if Storage has enough input items
+---@param recipe table The recipe table
+---@param n integer How many crafts to check quanities
+---@return boolean HasEnoughItems
+function SS:ensureStock(recipe, n)
+    local itemRequirements = {}
+    for _, item in pairs(recipe.input) do -- Find how many are needed in entire recipe
+        itemRequirements[item] = itemRequirements[item] or 0
+        itemRequirements[item] = itemRequirements[item] + 1 * (n or 1)
+    end
+    for item, needed in pairs(itemRequirements) do
+        if not self:hasNItems(item, needed) then return false end
+    end
+    return true
+end
+
+function SS:craftN(recipe, n)
+    local workbench = peripheral.find("workbench")
+    if not workbench then return true end
+    if not self.buffer then return true end
+    -- if not selected then return true end
+    -- if not fs.exists(Vs.name .. "/Recipes/" .. selected) then return true end
+    -- local recipe = loadFile(Vs.name .. "/Recipes/" .. selected)
+    if not self:ensureStock(recipe, n) then return true end
+
+    -- Find the minimum stack size among output and all inputs
+    if not Vs.itemDetailsMap[recipe.name] then return true end --todo give user feedback on what went wrong
+    local outputStack = Vs.itemDetailsMap[recipe.name].maxCount
+    local minStack = outputStack
+    for _, item in pairs(recipe.input) do
+        if not Vs.itemDetailsMap[item] then return true end -- Validate itemDetailsMap
+        local stackSize = Vs.itemDetailsMap[item].maxCount
+        if stackSize < minStack then
+            minStack = stackSize
+        end
+    end
+
+    local crafted = 0
+    while crafted < n do
+        -- For this batch, determine how many crafts we can do at once
+        local craftsThisBatch = math.min(minStack, n - crafted)
+        for slot, item in pairs(recipe.input) do
+            os.queueEvent("turtle_inventory_ignore")
+            local ingredientStack = Vs.itemDetailsMap[item].maxCount
+            -- How much of a stack to pull for this batch
+            local percent = craftsThisBatch / ingredientStack
+            self:retrieveItem(item, percent)
+            turtle.select(slot)
+            turtle.suckDown()
+        end
+
+        workbench.craft()
+        os.queueEvent("turtle_inventory_ignore")
+        turtle.drop()
+        crafted = crafted + craftsThisBatch
+    end
+
+    os.queueEvent("turtle_inventory_start")
+    os.queueEvent("Update_Env")
+    return false
+end
+
 function SS:hasNItems(item, n)
     for _, itemslot in ipairs(self.chests[item] or {}) do
         n = n - itemslot.count

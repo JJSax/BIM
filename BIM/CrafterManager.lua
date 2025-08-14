@@ -13,7 +13,8 @@ local recipeMenu = window.create(mainScreen, 1, mainSize[2], mainSize[1], 1)
 
 local colAmount
 local scrollIndex = 0
-local selected = -1
+--todo look into separating selected string type and integer type
+local selected = -1 ---@type integer|string string if valid item selected, otherwise which slot was selected
 
 local workbenchInputSlots = { 1, 2, 3, 5, 6, 7, 9, 10, 11 }
 --#endregion Locals--
@@ -93,71 +94,19 @@ local function deleteRecipe()
     return false
 end
 
----Get if Storage has enough input items
----@param recipe table The recipe table
----@param n integer How many crafts to check quanities
----@return boolean HasEnoughItems
-local function ensureStock(recipe, n)
-    local itemRequirements = {}
-    for _, item in pairs(recipe.input) do -- Find how many are needed in entire recipe
-        itemRequirements[item] = itemRequirements[item] or 0
-        itemRequirements[item] = itemRequirements[item] + 1 * (n or 1)
-    end
-    for item, needed in pairs(itemRequirements) do
-        if not Storage:hasNItems(item, needed) then return false end
-    end
-    return true
-end
-
-local function craftN(n)
-    if not workbench then return true end
+---common craft function that does some pre-checks before delegating craft to Storage
+---@param selected number|string The name of the selected item
+---@param count number|"stack" The number to craft, "stack" to craft a full stack of the item
+---@return boolean _ True if the craft errored, false if successful
+local function craft(selected, count)
     if not selected then return true end
-    if not Storage.buffer then return true end
     if not fs.exists(Vs.name .. "/Recipes/" .. selected) then return true end
     local recipe = loadFile(Vs.name .. "/Recipes/" .. selected)
-    if not ensureStock(recipe, n) then return true end
-
-    -- Find the minimum stack size among output and all inputs
-    if not Vs.itemDetailsMap[recipe.name] then return true end --todo give user feedback on what went wrong
-    local outputStack = Vs.itemDetailsMap[recipe.name].maxCount
-    local minStack = outputStack
-    for _, item in pairs(recipe.input) do
-        if not Vs.itemDetailsMap[item] then return true end -- Validate itemDetailsMap
-        local stackSize = Vs.itemDetailsMap[item].maxCount
-        if stackSize < minStack then
-            minStack = stackSize
-        end
-    end
-
-    local crafted = 0
-    while crafted < n do
-        -- For this batch, determine how many crafts we can do at once
-        local craftsThisBatch = math.min(minStack, n - crafted)
-        for slot, item in pairs(recipe.input) do
-            os.queueEvent("turtle_inventory_ignore")
-            local ingredientStack = Vs.itemDetailsMap[item].maxCount
-            -- How much of a stack to pull for this batch
-            local percent = craftsThisBatch / ingredientStack
-            Storage:retrieveItem(item, percent)
-            turtle.select(slot)
-            turtle.suckDown()
-        end
-
-        workbench.craft()
-        os.queueEvent("turtle_inventory_ignore")
-        turtle.drop()
-        crafted = crafted + craftsThisBatch
-    end
-
-    os.queueEvent("turtle_inventory_start")
-    os.queueEvent("Update_Env")
-    return false
+    if count == "stack" then count = Vs.itemDetailsMap[recipe.name].maxCount end
+    return Storage:craftN(recipe, count)
 end
-local craftOne = function() return craftN(1) end
-local craftStack = function()
-    local recipe = loadFile(Vs.name .. "/Recipes/" .. selected)
-    return craftN(Vs.itemDetailsMap[recipe.name].maxCount)
-end
+local function craftOne()   return craft(selected, 1) end
+local function craftStack() return craft(selected, "stack") end
 
 local buttons = { " Craft one ", " Craft stack ", " Save ", " Delete  " }
 local function menu(selection, menuError)
@@ -290,7 +239,7 @@ local function craftingMenu(itemName)
                 break
             elseif x <= 7 then
                 --todo recursive crafting
-                if craftN(craftNum) then
+                if craft(itemName, craftNum) then
                     local craftText = " Error "
                     recipeMenu.setCursorPos(1, 1)
                     recipeMenu.blit(craftText, ('f'):rep(#craftText), ('e'):rep(#craftText))
@@ -390,7 +339,6 @@ if not success then
     term.setTextColor(colors.white)
     print(success)
     print(result)
-    print(debug.traceback())
     os.pullEvent("key")
 end
 --#endregion Main--

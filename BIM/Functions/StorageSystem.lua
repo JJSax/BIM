@@ -20,6 +20,7 @@ function SS:init(newVs)
     self.buffer = peripheral.wrap(Vs.getEnv('Buffer'))
 end
 
+---Scans attached storage system to gather data about where items are, and saves the detailed data.
 function SS:scanStorage()
     local chestlist = {}
     local foundNewItemType = false
@@ -119,6 +120,7 @@ function SS:pushBufferItemToStorage(chestName, fromSlotIndex, toSlotIndex, itemI
     return pushed
 end
 
+---Loops through the buffer and stores all the items
 function SS:storeBuffer()
     if not self.buffer then return end
     -- Get buffer inventory
@@ -170,6 +172,11 @@ function SS:storeBuffer()
     end
 end
 
+---Attempt to retrieve items from storage
+---@param itemName string name of item I.E. "minecraft:bone"
+---@param percentOfStack number The percent 0-1 of a stack to grab. i.e. 0.5 is half a stack of this item; works with items with different stack sizes
+---@return boolean # true if it was able to retrieve the item, otherwise false
+---@return boolean|nil # Return true if pulled the last item
 function SS:retrieveItem(itemName, percentOfStack)
     if not self.buffer then return false end
     local chestData = self.chests[itemName]
@@ -201,7 +208,6 @@ function SS:retrieveItem(itemName, percentOfStack)
                 if listItem.count == 0 then
                     table.remove(self.list, l)
                     noMoreItemLeft = true
-                    -- table.remove(filtered, id) -- instantly remove from viewed list if none left
                 end
             end
 
@@ -221,6 +227,10 @@ function SS:retrieveItem(itemName, percentOfStack)
     return true, noMoreItemLeft
 end
 
+---Checks the storage system contains n or more of given item
+---@param item string The item ID/name to search for.  I.E. "minecraft:bone"
+---@param n integer The amount check storage for
+---@return boolean # true if storage has enough of item, otherwise false
 function SS:hasNItems(item, n)
     for _, itemslot in ipairs(self.chests[item] or {}) do
         n = n - itemslot.count
@@ -230,8 +240,8 @@ function SS:hasNItems(item, n)
 end
 
 return setmetatable({
-    chests = {},
-    list = {},
+    chests = {}, -- key of an itemname, value example {['side']=peripheral.getName(chest),['slot']=j,['count']=item.count,['name']=name}
+    list = {},   -- list of items in system { {count:int, displayName:string, id:string} }
     storagePeripherals = {},
     buffer = nil
 }, SS)

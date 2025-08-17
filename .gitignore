@@ -3,3 +3,6 @@
 */Recipes/*
 */BIM.settings
 */BIM_itemDetailsMap.lua
+
+#The helper script that now moves the relevant items to CC computer
+sync.py

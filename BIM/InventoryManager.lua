@@ -1,8 +1,6 @@
 --todo consider making clicked item bg flash instead of stay selected indefinitely
---todo test if thousands of items get rounded to the thousand
 --todo consider allow clicking in the middle of sortString to add text in the center.
 --todo add scrolling when dragging scroll bar
---todo work with itemGroups
 
 --#region Locals--
 local settingPath = Vs.name .. '/' .. Vs.name .. '.settings'
@@ -69,14 +67,43 @@ local function filter(fList)
     local trimmedSearch = trim(searchText):lower()
     local matches = shallowCLone(fList)
     for str in trimmedSearch:gmatch("([^%s]+)") do
-        --todo work with item tags using "#"
         local new = {}
-        if str:sub(1, 1) == "@" then -- search by mod
-            local withoutAt = str:sub(2) -- exclude '@'
+        local firstChar = str:sub(1, 1)
+        if firstChar == "@" then -- search by mod
+            local withoutFirst = str:sub(2) -- exclude '@'
 
             for _, v in ipairs(matches) do
-                if v.name:sub(1, #withoutAt) == withoutAt then
+                local modName = v.name:sub(1, v.name:find(":") - 1)
+                if modName:find(withoutFirst) then
                     table.insert(new, v)
+                end
+            end
+            matches = new
+        elseif firstChar == "#" then     -- search by tags
+            local withoutFirst = str:sub(2) -- exclude '#'
+
+            for _, v in ipairs(matches) do
+                -- v = {name = .., count = ..}
+                local itemTags = Vs.itemDetailsMap[v.name].tags
+
+                for tag in pairs(itemTags) do
+                    if tag:find(withoutFirst) then
+                        table.insert(new, v)
+                        break
+                    end
+                end
+            end
+            matches = new
+        elseif firstChar == "$" then     -- search by creative tab
+            local withoutFirst = str:sub(2) -- exclude '$'
+
+            for _, v in ipairs(matches) do
+                local groups = Vs.itemDetailsMap[v.name].groups
+                for _, tab in ipairs(groups or {}) do -- account for other versions that doesn't have groups
+                    if tab.id:find(withoutFirst) or tab.displayName:find(withoutFirst) then
+                        table.insert(new, v)
+                        break
+                    end
                 end
             end
             matches = new

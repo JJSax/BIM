@@ -14,8 +14,7 @@ local recipeMenu = window.create(mainScreen, 1, mainSize[2], mainSize[1], 1)
 
 local colAmount
 local scrollIndex = 0
---todo look into separating selected string type and integer type
-local selected = -1 ---@type integer|string string if valid item selected, otherwise which slot was selected
+local selected = -1 --- Which index of recipes is selected
 
 local workbenchInputSlots = { 1, 2, 3, 5, 6, 7, 9, 10, 11 }
 --#endregion Locals--
@@ -63,7 +62,7 @@ local function readRecipe()
     if inputEmpty then return true end
 
     storeFile(Vs.name .. "/Recipes/" .. filename, recipe)
-    selected = 0
+    selected = -1
     recipes = fs.list(Vs.name .. "/Recipes")
     clickList = Um.Print(recipes, selected, scrollIndex, scrollBar, screen, colAmount)
     return false
@@ -96,13 +95,14 @@ local function deleteRecipe()
 end
 
 ---common craft function that does some pre-checks before delegating craft to Storage
----@param selected number|string The name of the selected item
+---@param selected number The name of the selected item
 ---@param count number|"stack" The number to craft, "stack" to craft a full stack of the item
 ---@return boolean _ True if the craft errored, false if successful
 local function craft(selected, count)
-    if not selected then return true end
-    if not fs.exists(Vs.name .. "/Recipes/" .. selected) then return true end
-    local recipe = loadFile(Vs.name .. "/Recipes/" .. selected)
+    if selected == -1 then return true end
+    local itemName = recipes[selected]
+    if not fs.exists(Vs.name .. "/Recipes/" .. itemName) then return true end
+    local recipe = loadFile(Vs.name .. "/Recipes/" .. itemName)
     if count == "stack" then count = Vs.itemDetailsMap[recipe.name].maxCount end
     return Storage:craftN(recipe, count)
 end
@@ -155,17 +155,18 @@ local function loopPrint()
             if event[4] > screenSize[2] then -- if clicked on bottom buttons.  Aka the crafts, save, delete buttons
                 clickedMenu(event[3])
             else
-                local itemClicked = Um.Click(clickList, event[3], event[4])
-                selected = recipes[itemClicked]
+                selected = Um.Click(clickList, event[3], event[4]) -- index of item clicked integer
+                local itemName = recipes[selected]
+
                 if event[2] == 3 then -- middle click
                     -- craftingMenu(selected)
-                    craftingMenu.open(Storage, screen, recipeMenu, selected)
+                    craftingMenu.open(Storage, screen, recipeMenu, itemName)
                     screen.setBackgroundColor(colors.black)
                     screen.setTextColor(colors.white)
-                    clickList = Um.Print(recipes, selected, scrollIndex, scrollBar, screen, colAmount)
+                    clickList = Um.Print(recipes, itemName, scrollIndex, scrollBar, screen, colAmount)
                     clickedMenu(-1)
                 else
-                    Um.Print(recipes, selected, scrollIndex, scrollBar, screen, colAmount)
+                    Um.Print(recipes, itemName, scrollIndex, scrollBar, screen, colAmount)
                 end
             end
         elseif event[1] == "click_ignore" then

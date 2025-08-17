@@ -245,7 +245,9 @@ function SS:craftN(recipe, n)
     if not self:ensureStock(recipe, n) then return true end
 
     -- Find the minimum stack size among output and all inputs
-    if not Vs.itemDetailsMap[recipe.name] then return true end --todo give user feedback on what went wrong
+    --todo give user feedback on what went wrong
+    if not Vs.itemDetailsMap[recipe.name] and not self:updateDetails(recipe.name) then return true end
+
     local outputStack = Vs.itemDetailsMap[recipe.name].maxCount
     local minStack = outputStack
     for _, item in pairs(recipe.input) do
@@ -285,6 +287,19 @@ function SS:hasNItems(item, n)
     for _, itemslot in ipairs(self.chests[item] or {}) do
         n = n - itemslot.count
         if n <= 0 then return true end
+    end
+    return false
+end
+
+---Works with Vs to save the item details
+---@param name string The item id/name I.E. "minecraft:bone"
+---@return boolean # true if successful, otherwise false
+function SS:updateDetails(name)
+    for k, v in pairs(self.chests[name] or {}) do
+        if v.count > 0 then
+            Vs.setItemDetail(v.name, v.side, v.slot)
+            return true
+        end
     end
     return false
 end

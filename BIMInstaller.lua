@@ -10,7 +10,8 @@ ToDownload={
       '/BIM/SettingsManager.lua',
       '/BIM/Functions/UiManager.lua',
       '/BIM/Functions/VariableStorage.lua',
-      '/BIM/Functions/StorageSystem.lua'
+      '/BIM/Functions/StorageSystem.lua',
+      '/BIM/Feedback/craftError.lua',
     }
   }
 }

@@ -237,13 +237,11 @@ function SS:ensureStock(recipe, n)
     return true
 end
 
+--todo add recursive crafting
 function SS:craftN(recipe, n)
     local workbench = peripheral.find("workbench")
     if not workbench then return true end
     if not self.buffer then return true end
-    -- if not selected then return true end
-    -- if not fs.exists(Vs.name .. "/Recipes/" .. selected) then return true end
-    -- local recipe = loadFile(Vs.name .. "/Recipes/" .. selected)
     if not self:ensureStock(recipe, n) then return true end
 
     -- Find the minimum stack size among output and all inputs

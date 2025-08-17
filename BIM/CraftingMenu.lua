@@ -34,39 +34,23 @@ local function loadFile(name)
 	end
 end
 
----@param itemName string The display name of the item clicked
-function CM.open(storageSystem, screen, recipeMenu, itemName)
-	if not itemName then return false end
-	local self = setmetatable({}, CM)
-
-	self.screen = screen
-	self.craftNum = 1
-	self.cButtons = {}
-	self.recipeMenu = recipeMenu
-
-	self.screenWidth, self.screenHeight = screen.getSize()
-	self.Storage = storageSystem
-
-	self:craftingMenu(itemName)
-end
-
-function CM:write(t, x, y, tc, bc)
+local function write(self, t, x, y, tc, bc)
 	self.screen.setCursorPos(x, y)
 	self.screen.blit(t, tc:rep(#t), bc:rep(#t))
 end
 
-function CM:drawCraftNum()
-	self:write((' '):rep(5), 9, 6, 'f', '8')
+local function drawCraftNum(self)
+	write(self, (' '):rep(5), 9, 6, 'f', '8')
 	local numberLength = string.len(self.craftNum)
-	self:write(tostring(self.craftNum), 12 + (-numberLength + numberLength / 2), 6, 'f', '8')
+	write(self, tostring(self.craftNum), 12 + (-numberLength + numberLength / 2), 6, 'f', '8')
 end
 
-function CM:createCharButton(viewport, char, x, y, w, h, callback, tc, bc)
+local function createCharButton(self, viewport, char, x, y, w, h, callback, tc, bc)
 	table.insert(self.cButtons, { char = char, x = x, y = y, w = w, h = h, callback = callback, tc = tc, bc = bc })
 	drawCharButton(viewport, self.cButtons[#self.cButtons])
 end
 
-function CM:drawItemLabel(itemName, x)
+local function drawItemLabel(self, itemName, x)
 	-- Show item title being requested
 	self.screen.setBackgroundColor(colors.lightGray)
 	for i = 1, 3 do
@@ -75,21 +59,21 @@ function CM:drawItemLabel(itemName, x)
 	end
 
 	-- Draw fancy border around item display name
-	self:write(itemName, x, 2, 'f', '8')
-	self:write(string.char(0x8C):rep(#itemName), x, 1, '9', '8') -- top
-	self:write(string.char(0x83):rep(#itemName), x, 3, '9', '8') -- bottom
-	self:write(string.char(0x95), x - 1, 2, '9', '8')         -- left
-	self:write(string.char(0x95), x + #itemName, 2, '8', '9') -- right
-	self:write(string.char(0x9C), x - 1, 1, '9', '8')         -- tl corner
-	self:write(string.char(0x93), x + #itemName, 1, '8', '9') -- tr corner
-	self:write(string.char(0x83), x - 1, 3, '9', '8')         -- bl corner
-	self:write(string.char(0x83), x + #itemName, 3, '9', '8') -- br corner
+	write(self, itemName, x, 2, 'f', '8')
+	write(self, string.char(0x8C):rep(#itemName), x, 1, '9', '8') -- top
+	write(self, string.char(0x83):rep(#itemName), x, 3, '9', '8') -- bottom
+	write(self, string.char(0x95), x - 1, 2, '9', '8')         -- left
+	write(self, string.char(0x95), x + #itemName, 2, '8', '9') -- right
+	write(self, string.char(0x9C), x - 1, 1, '9', '8')         -- tl corner
+	write(self, string.char(0x93), x + #itemName, 1, '8', '9') -- tr corner
+	write(self, string.char(0x83), x - 1, 3, '9', '8')         -- bl corner
+	write(self, string.char(0x83), x + #itemName, 3, '9', '8') -- br corner
 end
 
 -- draw the crafting menu
 -- This will draw a menu that will allow the user to decide how much to craft, and if they want to recursively craft
 ---@param itemName string The display name of the item clicked
-function CM:craftingMenu(itemName)
+local function craftingMenu(self, itemName)
 	if not itemName then return false end
 	do
 		self.recipeMenu.clear() -- normal buttons should not be shown; they aren't used here
@@ -105,24 +89,8 @@ function CM:craftingMenu(itemName)
 	local recurse = true
 
 	self.screen.clear()
-	-- Show item title being requested
-	self.screen.setBackgroundColor(colors.lightGray)
-	for i = 1, 3 do
-		self.screen.setCursorPos(1, i)
-		self.screen.clearLine()
-	end
-
-	-- Draw fancy border around item display name
 	local x = math.floor(self.screenWidth / 2 - #itemName / 2)
-	self:write(itemName, x, 2, 'f', '8')
-	self:write(string.char(0x8C):rep(#itemName), x, 1, '9', '8') -- top
-	self:write(string.char(0x83):rep(#itemName), x, 3, '9', '8') -- bottom
-	self:write(string.char(0x95), x - 1, 2, '9', '8')            -- left
-	self:write(string.char(0x95), x + #itemName, 2, '8', '9')    -- right
-	self:write(string.char(0x9C), x - 1, 1, '9', '8')            -- tl corner
-	self:write(string.char(0x93), x + #itemName, 1, '8', '9')    -- tr corner
-	self:write(string.char(0x83), x - 1, 3, '9', '8')            -- bl corner
-	self:write(string.char(0x83), x + #itemName, 3, '9', '8')    -- br corner
+	drawItemLabel(self, itemName, x)
 
 	local function sub64() self.craftNum = self.craftNum - 64 end
 	local function sub1() self.craftNum = self.craftNum - 1 end
@@ -130,16 +98,17 @@ function CM:craftingMenu(itemName)
 	local function add64() self.craftNum = self.craftNum == 1 and 64 or self.craftNum + 64 end
 
 	-- draw amount changing buttons
-	self:createCharButton(self.screen, string.char(0xAB), 2, 5, 3, 3, sub64, colors.white, colors.gray) -- "«"
-	self:createCharButton(self.screen, string.char(0x2D), 5, 5, 3, 3, sub1, colors.white, colors.gray)  -- "-"
-	self:createCharButton(self.screen, string.char(0x2B), 15, 5, 3, 3, add1, colors.white, colors.gray) -- "+"
-	self:createCharButton(self.screen, string.char(0xBB), 18, 5, 3, 3, add64, colors.white, colors.gray) -- "»"
+	createCharButton(self, self.screen, string.char(0xAB), 2, 5, 3, 3, sub64, colors.white, colors.gray) -- "«"
+	createCharButton(self, self.screen, string.char(0x2D), 5, 5, 3, 3, sub1, colors.white, colors.gray)  -- "-"
+	createCharButton(self, self.screen, string.char(0x2B), 15, 5, 3, 3, add1, colors.white, colors.gray) -- "+"
+	createCharButton(self, self.screen, string.char(0xBB), 18, 5, 3, 3, add64, colors.white, colors.gray) -- "»"
 
 	-- draw number to craft
 	drawCharButton(self.screen, { char = ' ', x = 8, y = 5, w = 7, h = 3, bc = colors.lightGray, tc = colors.black })
-	self:drawCraftNum()
+	drawCraftNum(self)
 
-	-- self:createCharButton(
+	--! add button for recursive crafting, which is not yet implemented.
+	-- createCharButton(self,
 	-- 	self.screen,
 	-- 	recurse and string.char(0x04) or ' ',
 	-- 	2, 9, 1, 1, function(self)
@@ -182,11 +151,31 @@ function CM:craftingMenu(itemName)
 					sleep(0.05)
 					self.screen.setBackgroundColor(colors.gray)
 					drawCharButton(self.screen, v)
-					self:drawCraftNum()
+					drawCraftNum(self)
 				end
 			end
 		end
 	end
+end
+
+---Opens the crafting menu, while setting needed variables.
+---@param storageSystem table SS system
+---@param screen ccTweaked.term.Redirect The ccTweaked.Window being drawn to
+---@param recipeMenu ccTweaked.term.Redirect The bottom bar that previously shows "Craft One" etc.
+---@param itemName string The display name of the item clicked
+function CM.open(storageSystem, screen, recipeMenu, itemName)
+	if not itemName then return false end
+	local self = setmetatable({}, CM)
+
+	self.screen = screen
+	self.craftNum = 1
+	self.cButtons = {}
+	self.recipeMenu = recipeMenu
+
+	self.screenWidth, self.screenHeight = screen.getSize()
+	self.Storage = storageSystem
+
+	craftingMenu(self, itemName)
 end
 
 return CM

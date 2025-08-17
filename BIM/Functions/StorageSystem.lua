@@ -133,9 +133,11 @@ function SS:storeBuffer()
         -- Fill non-full stacks
         for _, chestSlot in ipairs(chestSlots) do
             if remaining <= 0 then break end
-            local pushed = self.buffer.pushItems(chestSlot.side, slot, 64, chestSlot.slot)
-            chestSlot.count = chestSlot.count + pushed
-            remaining = remaining - pushed
+            if chestSlot.count < Vs.itemDetailsMap[itemId].maxCount then
+                local pushed = self.buffer.pushItems(chestSlot.side, slot, 64, chestSlot.slot)
+                chestSlot.count = chestSlot.count + pushed
+                remaining = remaining - pushed
+            end
         end
 
         -- Put remaining items in empty slots

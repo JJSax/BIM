@@ -18,6 +18,7 @@ function SS:init(newVs)
     end
 
     self.buffer = peripheral.wrap(Vs.getEnv('Buffer'))
+    self.initialized = true
 end
 
 function SS:scanStorage()
@@ -61,7 +62,6 @@ function SS:scanStorage()
 end
 
 function SS:sortStorage()
-
     for _, item in ipairs(self.list) do
         local maxCount = Vs.itemDetailsMap[item.name].maxCount
         local maxSlotsNeeded = math.ceil(item.count / maxCount)

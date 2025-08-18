@@ -129,6 +129,7 @@ local function storeAllFromTurtle()
     Storage:storeBuffer()
 end
 
+--todo handle large item input overflowing buffer
 local function storeItems()
     while true do
         if buffer then
@@ -359,6 +360,9 @@ end
 
 --#region Main--
 
+repeat
+    sleep(0.1)
+until Storage.initialized
 loadEnv()
 
 screen.setCursorPos(1, 1)

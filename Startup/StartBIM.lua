@@ -1,12 +1,12 @@
-ProjectName = "BIM"
-Programs = { "Inventory", "Crafter", "Settings" }
-local Um = require('/' .. ProjectName .. "/Functions/UiManager")
-local SS = require('/' .. ProjectName .. "/Functions/StorageSystem")
-local Vs = require('/' .. ProjectName .. "/Functions/VariableStorage")
+local projectName = "BIM"
+local programs = { "Inventory", "Crafter", "Settings" }
+local Um = require('/' .. projectName .. "/Functions/UiManager")
+local SS = require('/' .. projectName .. "/Functions/StorageSystem")
+local Vs = require('/' .. projectName .. "/Functions/VariableStorage")
 SS:init(Vs)
 Um.setVs(Vs)
 
-for _, value in ipairs(Programs) do
+for _, value in ipairs(programs) do
     multishell.setTitle(
         multishell.launch(
             {
@@ -16,7 +16,7 @@ for _, value in ipairs(Programs) do
                 require = require,
                 multishell = multishell
             },
-            '/' .. ProjectName .. '/' .. value .. 'Manager.lua'),
+            '/' .. projectName .. '/' .. value .. 'Manager.lua'),
         value
     )
 end

@@ -29,9 +29,8 @@ local mainScreen = term.current()
 local mainSize = { mainScreen.getSize() }
 local secondScreen = window.create(mainScreen, 1, 1, 1, 1)
 secondScreen.setVisible(false)
-local screen, screenSize, scrollBar = Um.Create(mainScreen, 1, 2, mainSize[1], mainSize[2], colors.black, colors.white,
-    true,
-    colors.gray, colors.white)
+local screen, screenSize, scrollBar = Um.Create(mainScreen, 1, 2, mainSize[1], mainSize[2],
+    colors.black, colors.white, true, colors.gray, colors.white )
 local search, searchSize = Um.Create(mainScreen, 1, 1, mainSize[1], 1, colors.lightGray, colors.black)
 local searchTitle = 'Search:'
 local searching = false
@@ -353,6 +352,14 @@ end
 
 local function loopTopBar()
     while true do
+
+        if not Storage.buffer then
+            while true do
+                os.pullEvent("Update_Env")
+                if Storage.buffer then break end
+            end
+        end
+
         local event = { os.pullEvent("mouse_click") }
 
         if event[4] == 1 then -- only when clicked on top bar
@@ -399,6 +406,7 @@ search.write(searchTitle .. string.rep(' ', (searchLength) + 1) .. '|')
 search.setCursorPos(searchSize[1] - #sortDisplay[sortIndex], 1)
 search.write(sortDisplay[sortIndex])
 searchBar.clear()
+printScreen()
 local success, result = pcall(function()
     parallel.waitForAll(loopSort, loopPrint, storeItems, loopEnv, loopTopBar)
 end)

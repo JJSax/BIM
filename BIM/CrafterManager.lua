@@ -1,8 +1,9 @@
 assert(turtle, "Requires a crafty turtle.")
 
 --#region Locals--
+local craftingMenu = require("/"..Vs.name .. ".CraftingMenu")
 local workbench = peripheral.find("workbench")
-local recipes = {}
+local recipes = {} -- array of recipe names
 local clickList = {}
 local mainScreen = term.current()
 local mainSize = { mainScreen.getSize() }
@@ -13,7 +14,7 @@ local recipeMenu = window.create(mainScreen, 1, mainSize[2], mainSize[1], 1)
 
 local colAmount
 local scrollIndex = 0
-local selected = -1
+local selected = -1 --- Which index of recipes is selected
 
 local workbenchInputSlots = { 1, 2, 3, 5, 6, 7, 9, 10, 11 }
 --#endregion Locals--
@@ -61,7 +62,7 @@ local function readRecipe()
     if inputEmpty then return true end
 
     storeFile(Vs.name .. "/Recipes/" .. filename, recipe)
-    selected = 0
+    selected = -1
     recipes = fs.list(Vs.name .. "/Recipes")
     clickList = Um.Print(recipes, selected, scrollIndex, scrollBar, screen, colAmount)
     return false
@@ -93,94 +94,20 @@ local function deleteRecipe()
     return false
 end
 
----Get if Storage has enough input items
----@param recipe table The recipe table
----@param n integer How many crafts to check quanities
----@return boolean HasEnoughItems
-local function ensureStock(recipe, n)
-    local itemRequirements = {}
-    for _, item in pairs(recipe.input) do -- Find how many are needed in entire recipe
-        itemRequirements[item] = itemRequirements[item] or 0
-        itemRequirements[item] = itemRequirements[item] + 1 * (n or 1)
-    end
-    for item, needed in pairs(itemRequirements) do
-        if not Storage:hasNItems(item, needed) then return false end
-    end
-    return true
+---common craft function that does some pre-checks before delegating craft to Storage
+---@param selected number The name of the selected item
+---@param count number|"stack" The number to craft, "stack" to craft a full stack of the item
+---@return boolean _ True if the craft errored, false if successful
+local function craft(selected, count)
+    if selected == -1 then return true end
+    local itemName = recipes[selected]
+    if not fs.exists(Vs.name .. "/Recipes/" .. itemName) then return true end
+    local recipe = loadFile(Vs.name .. "/Recipes/" .. itemName)
+    if count == "stack" then count = Vs.itemDetailsMap[recipe.name].maxCount end
+    return Storage:craftN(recipe, count)
 end
-
-local function getMinCraftsPerStack(recipe)
-    local maxInput = 64
-    for _, item in pairs(recipe.input) do
-        local max = Vs.itemDetailsMap[item].maxCount
-        if max < maxInput then
-            maxInput = max
-        end
-    end
-    return 64 / maxInput
-end
-
-local function craftOne()
-    if not workbench then return true end
-    if not selected then return true end
-    if not fs.exists(Vs.name .. "/Recipes/" .. selected) then return true end
-    local recipe = loadFile(Vs.name .. "/Recipes/" .. selected)
-    if recipe == nil or Storage.chests == nil then return true end
-    if not ensureStock(recipe, 1) then return true end
-    if not Storage.buffer then return true end
-
-    for slot, item in pairs(recipe.input) do
-        os.queueEvent("turtle_inventory_ignore")
-        Storage:retrieveItem(item, 0.015625)
-        turtle.select(slot)
-        turtle.suckDown()
-    end
-
-    workbench.craft()
-    os.queueEvent("turtle_inventory_ignore")
-    turtle.drop()
-    os.queueEvent("turtle_inventory_start")
-    os.queueEvent("Update_Env")
-    return false
-end
-
-local function craftStack()
-    if not workbench then return true end
-    if not selected then return true end
-    if not fs.exists(Vs.name .. "/Recipes/" .. selected) then return true end
-    local recipe = loadFile(Vs.name .. "/Recipes/" .. selected)
-    if not ensureStock(recipe, Vs.itemDetailsMap[recipe.name].maxCount) then return true end
-    if not Storage.buffer then return true end
-
-    -- Find the minimum stack size among output and all inputs
-    local minStack = Vs.itemDetailsMap[recipe.name].maxCount
-    for _, item in pairs(recipe.input) do
-        local stackSize = Vs.itemDetailsMap[item].maxCount
-        if stackSize < minStack then
-            minStack = stackSize
-        end
-    end
-
-    local nCrafts = getMinCraftsPerStack(recipe)
-    for _ = 1, nCrafts do
-        -- Pull the correct amount for each ingredient
-        for slot, item in pairs(recipe.input) do
-            os.queueEvent("turtle_inventory_ignore")
-            local ingredientStack = Vs.itemDetailsMap[item].maxCount
-            local percent = minStack / ingredientStack
-            Storage:retrieveItem(item, percent)
-            turtle.select(slot)
-            turtle.suckDown()
-        end
-        workbench.craft()
-        os.queueEvent("turtle_inventory_ignore")
-        turtle.drop()
-    end
-
-    os.queueEvent("turtle_inventory_start")
-    os.queueEvent("Update_Env")
-    return false
-end
+local function craftOne()   return craft(selected, 1) end
+local function craftStack() return craft(selected, "stack") end
 
 local buttons = { " Craft one ", " Craft stack ", " Save ", " Delete  " }
 local function menu(selection, menuError)
@@ -225,11 +152,22 @@ local function loopPrint()
             scrollIndex = scrollIndex + event[2]
             clickList = Um.Print(recipes, selected, scrollIndex, scrollBar, screen, colAmount)
         elseif event[1] == "mouse_click" then
-            if event[4] > screenSize[2] then
+            if event[4] > screenSize[2] then -- if clicked on bottom buttons.  Aka the crafts, save, delete buttons
                 clickedMenu(event[3])
             else
-                selected = recipes[Um.Click(clickList, event[3], event[4])]
-                Um.Print(recipes, selected, scrollIndex, scrollBar, screen, colAmount)
+                selected = Um.Click(clickList, event[3], event[4]) -- index of item clicked integer
+                local itemName = recipes[selected]
+
+                if event[2] == 3 then -- middle click
+                    -- craftingMenu(selected)
+                    craftingMenu.open(Storage, screen, recipeMenu, itemName)
+                    screen.setBackgroundColor(colors.black)
+                    screen.setTextColor(colors.white)
+                    clickList = Um.Print(recipes, itemName, scrollIndex, scrollBar, screen, colAmount)
+                    clickedMenu(-1)
+                else
+                    Um.Print(recipes, itemName, scrollIndex, scrollBar, screen, colAmount)
+                end
             end
         elseif event[1] == "click_ignore" then
             os.pullEvent("click_start")
@@ -283,7 +221,6 @@ if not success then
     term.setTextColor(colors.white)
     print(success)
     print(result)
-    print(debug.traceback())
     os.pullEvent("key")
 end
 --#endregion Main--

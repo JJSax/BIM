@@ -87,18 +87,17 @@ end
 
 local function deleteRecipe()
     if selected == -1 or not selected then return craftError.noSelection end
-    if not fs.exists(Vs.name .. "/Recipes/" .. selected) then return craftError.noRecipe end
-    fs.delete(Vs.name .. "/Recipes/" .. selected)
+    local itemName = recipes[selected]
+    if not fs.exists(Vs.name .. "/Recipes/" .. itemName) then return craftError.noRecipe end
+    fs.delete(Vs.name .. "/Recipes/" .. itemName)
     selected = -1
     recipes = fs.list(Vs.name .. "/Recipes")
     clickList = Um.Print(recipes, selected, scrollIndex, scrollBar, screen, colAmount)
     return false
 end
 
-
-
 ---common craft function that does some pre-checks before delegating craft to Storage
----@param selected number The name of the selected item
+---@param selected number The selected index
 ---@param count number|"stack" The number to craft, "stack" to craft a full stack of the item
 ---@return string | boolean _ True if the craft errored, false if successful
 local function craft(selected, count)
@@ -154,7 +153,6 @@ local function clickedMenu(x)
         xPos = xPos + #s
     end
 
-
     if selectionFunctions[buttonIndex] then
         local msg = selectionFunctions[buttonIndex]()
         if msg then
@@ -182,7 +180,6 @@ local function loopPrint()
                 local itemName = recipes[selected]
 
                 if event[2] == 3 then -- middle click
-                    -- craftingMenu(selected)
                     craftingMenu.open(Storage, screen, recipeMenu, itemName)
                     screen.setBackgroundColor(colors.black)
                     screen.setTextColor(colors.white)

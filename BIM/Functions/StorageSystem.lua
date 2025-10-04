@@ -254,7 +254,6 @@ function SS:craftN(recipe, n)
     if not self:ensureStock(recipe, n) then return craftError.insufficientStock end
 
     -- Find the minimum stack size among output and all inputs
-    --todo give user feedback on what went wrong
     if not Vs.itemDetailsMap[recipe.name] and not self:updateDetails(recipe.name) then return craftError.unmappedOutput end
 
     local outputStack = Vs.itemDetailsMap[recipe.name].maxCount

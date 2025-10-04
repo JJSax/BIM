@@ -155,7 +155,6 @@ local function storeAllFromTurtle()
     Storage:storeBuffer()
 end
 
---todo handle large item input overflowing buffer
 local function storeItems()
     while true do
         if buffer then

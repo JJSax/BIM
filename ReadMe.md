@@ -17,10 +17,11 @@ BIM is a ComputerCraft program that will solve many of your inventory problems. 
 |---|---| 
 <br>
 
-Then in the advance turtle, run the following command to install the program:
+Then in the advance turtle, run the following command to install the program:  
+Note: This is just for the JJSax full fork.  See https://github.com/DragonVoyageur/BIM for original branch.
 
 ```
-wget run https://raw.githubusercontent.com/DragonVoyageur/BIM/main/BIMInstaller.lua /
+wget run https://raw.githubusercontent.com/JJSax/BIM/refs/heads/PR-group/BIMInstaller.lua /
 ```
 
 After the Turtle reboots, Go to the settings tab, Click Buffer, then scroll and select the name of the inventory under the turtle.
@@ -39,12 +40,21 @@ The Inventory tab is where you can retrieve and deposit items, and display all i
 <br>
 You may click the item name to automatically retrieve the item from the inventories.
 <br>
+You can left click to retrieve up to a full stack, middle click to retreive one item, or right click to retrieve half a stack of that item.
+<br>
 ![DropItems](https://github.com/DragonVoyageur/BIM/assets/158514173/d3646a11-6a2b-407b-adf7-6c2f2fad1e03)
 <br>
 This tab is also in charge of sorting the items in the inventories, maximizing space.
 <br>
 ![MessyChest](https://github.com/DragonVoyageur/BIM/assets/158514173/4977a947-f844-4956-8bdc-8ef4e052812c)
 ![SortedChest](https://github.com/DragonVoyageur/BIM/assets/158514173/54fd3bf4-1b80-4b53-b3b2-9794e3b64e55)
+<br> <br>
+You have several ways you can search for your items.  You can search for substrings in the display name just by typing out as normal.  You can also prefix a word with the following.
+| Prefix | What it does           | Example        |
+|--------|------------------------|----------------|
+| @      | Search by mod          | @Computercraft |
+| #      | Search by tags.        | #planks        |
+| $      | Search by creative tab | $redstone      |
 
 ## Crafting
 The Crafting tab stores crafting recipes that you may use to craft items using items in the inventories.
@@ -52,6 +62,8 @@ You select the recipe that you want and click "Craft one" to craft the item or "
 <br>
 ![CrafterManager](https://github.com/DragonVoyageur/BIM/assets/158514173/80702b5d-2cf1-4df5-91a5-36b64452575c)
 <br>
+You can also middle click on a recipe to bring up a more detailed menu to craft a precise amount.
+<br> <br>
 To create a recipe you place the recipe items in the 3x3 solts in the top left of the Turtle's inentory, then place the crafting output in the bottom right of the inventory, click save to save the recipe named as the output item.
 <br>
 ![CraftingGuide](https://github.com/DragonVoyageur/BIM/assets/158514173/adf00bbe-d5ea-488b-afbd-16094951d5a9)

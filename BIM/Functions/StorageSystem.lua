@@ -1,6 +1,7 @@
 
 local Vs
 
+local craftError = require "/BIM.Feedback.craftError"
 local SS = {}
 SS.__index = SS
 
@@ -248,18 +249,19 @@ end
 --todo add recursive crafting
 function SS:craftN(recipe, n)
     local workbench = peripheral.find("workbench")
-    if not workbench then return true end
-    if not self.buffer then return true end
-    if not self:ensureStock(recipe, n) then return true end
+    if not workbench then return craftError.noWorkbench end
+    if not self.buffer then return craftError.noBuffer end
+    if not self:ensureStock(recipe, n) then return craftError.insufficientStock end
 
     -- Find the minimum stack size among output and all inputs
     --todo give user feedback on what went wrong
-    if not Vs.itemDetailsMap[recipe.name] and not self:updateDetails(recipe.name) then return true end
+    if not Vs.itemDetailsMap[recipe.name] and not self:updateDetails(recipe.name) then return craftError.unmappedOutput end
 
     local outputStack = Vs.itemDetailsMap[recipe.name].maxCount
     local minStack = outputStack
     for _, item in pairs(recipe.input) do
-        if not Vs.itemDetailsMap[item] then return true end -- Validate itemDetailsMap
+        -- Validate itemDetailsMap input item
+        if not Vs.itemDetailsMap[item] then return craftError.unmappedInput end
         local stackSize = Vs.itemDetailsMap[item].maxCount
         if stackSize < minStack then
             minStack = stackSize

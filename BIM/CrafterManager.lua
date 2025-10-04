@@ -1,8 +1,9 @@
 assert(turtle, "Requires a crafty turtle.")
 
+local craftError = require "/BIM.Feedback.craftError"
+
 --#region Locals--
-local craftingMenu = require("/"..Vs.name .. ".CraftingMenu")
-local workbench = peripheral.find("workbench")
+local craftingMenu = require("/" .. Vs.name .. ".CraftingMenu")
 local recipes = {} -- array of recipe names
 local clickList = {}
 local mainScreen = term.current()
@@ -43,7 +44,7 @@ end
 
 local function readRecipe()
     local basicResultDetails = turtle.getItemDetail(16)
-    if basicResultDetails == nil then return true end
+    if basicResultDetails == nil then return craftError.noOutputToSave end
     local recipe = {
         name = basicResultDetails.name,
         input = {}
@@ -59,7 +60,7 @@ local function readRecipe()
             recipe.input[v] = item.name
         end
     end
-    if inputEmpty then return true end
+    if inputEmpty then return craftError.noIngredients end
 
     storeFile(Vs.name .. "/Recipes/" .. filename, recipe)
     selected = -1
@@ -85,8 +86,8 @@ local function loadFile(name)
 end
 
 local function deleteRecipe()
-    if not selected then return true end
-    if not fs.exists(Vs.name .. "/Recipes/" .. selected) then return true end
+    if selected == -1 or not selected then return craftError.noSelection end
+    if not fs.exists(Vs.name .. "/Recipes/" .. selected) then return craftError.noRecipe end
     fs.delete(Vs.name .. "/Recipes/" .. selected)
     selected = -1
     recipes = fs.list(Vs.name .. "/Recipes")
@@ -94,28 +95,46 @@ local function deleteRecipe()
     return false
 end
 
+
+
 ---common craft function that does some pre-checks before delegating craft to Storage
 ---@param selected number The name of the selected item
 ---@param count number|"stack" The number to craft, "stack" to craft a full stack of the item
----@return boolean _ True if the craft errored, false if successful
+---@return string | boolean _ True if the craft errored, false if successful
 local function craft(selected, count)
-    if selected == -1 then return true end
+    if selected == -1 then return craftError.noSelection end
     local itemName = recipes[selected]
-    if not fs.exists(Vs.name .. "/Recipes/" .. itemName) then return true end
+    if not fs.exists(Vs.name .. "/Recipes/" .. itemName) then return craftError.noRecipe end
     local recipe = loadFile(Vs.name .. "/Recipes/" .. itemName)
+    if recipe == nil or Storage.chests == nil then return craftError.malformedRecipe end
+    if not Vs.itemDetailsMap[recipe.name] then return craftError.unmappedOutput end
     if count == "stack" then count = Vs.itemDetailsMap[recipe.name].maxCount end
+
     return Storage:craftN(recipe, count)
 end
-local function craftOne()   return craft(selected, 1) end
+local function craftOne() return craft(selected, 1) end
 local function craftStack() return craft(selected, "stack") end
+
+local function recipeError(msg)
+    recipeMenu.setBackgroundColor(colors.red)
+    local mLen = #msg
+    local pad = (" "):rep(math.ceil((recipeMenu.getSize() - mLen) / 2))
+    recipeMenu.setCursorPos(1, 1)
+    recipeMenu.write(pad .. msg .. pad)
+end
 
 local buttons = { " Craft one ", " Craft stack ", " Save ", " Delete  " }
 local function menu(selection, menuError)
-    if not workbench then
-        recipeMenu.setCursorPos(1, 1)
-        recipeMenu.write("Requires Crafty Turtle")
+    while not peripheral.find("workbench") do
+        recipeError(craftError.noWorkbench)
+        os.pullEvent("peripheral")
+    end
+
+    if menuError then
+        recipeError(menuError)
         return
     end
+
     recipeMenu.setCursorPos(1, 1)
     for i, text in ipairs(buttons) do
         local bgColor = selection == i and (menuError and 'e' or '7') or '8'
@@ -135,10 +154,14 @@ local function clickedMenu(x)
         xPos = xPos + #s
     end
 
-    menu(buttonIndex) -- darken buttonIndex button
+
     if selectionFunctions[buttonIndex] then
-        if selectionFunctions[buttonIndex]() then
-            menu(buttonIndex, true)
+        local msg = selectionFunctions[buttonIndex]()
+        if msg then
+            menu(buttonIndex, msg)
+            sleep(0.75)
+        else
+            menu(buttonIndex) -- darken buttonIndex button
             sleep(0.5)
         end
     end
@@ -171,6 +194,8 @@ local function loopPrint()
             end
         elseif event[1] == "click_ignore" then
             os.pullEvent("click_start")
+        elseif event[1] == "peripheral_detach" then
+            menu(-1) -- Instantly show no workbench message.
         end
     end
 end
